@@ -1,103 +1,210 @@
-import Image from "next/image";
+// "use client";
+// import { useEffect, useState } from "react";
+// import { getHotspots } from "@/lib/strapi";
+// import Map, { Marker, Popup } from "react-map-gl/mapbox";
 
-export default function Home() {
+// interface Hotspot {
+//   id: number;
+//   title: string;
+//   latitude: number;
+//   longitude: number;
+//   images: string[];
+//   musicRecommendations?: {
+//     title: string;
+//     artist: string;
+//   }[];
+// }
+
+// export default function HomePage() {
+//   const [hotspots, setHotspots] = useState<Hotspot[]>([]);
+//   const [selectedHotspot, setSelectedHotspot] = useState<Hotspot | null>(null);
+
+//   useEffect(() => {
+//     getHotspots().then((data) => {
+//       setHotspots(data);
+//     });
+//   }, []);
+  
+
+//   return (
+//     <div className="w-full h-screen">
+//       <Map
+//         mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}
+//         initialViewState={{
+//           latitude: 9.082,
+//           longitude: 8.6753,
+//           zoom: 5.5,
+//         }}
+//         style={{ width: "100%", height: "100%" }}
+//         mapStyle="mapbox://styles/mapbox/streets-v11"
+//       >
+//         {hotspots.map((spot, index) => (
+//           <Marker key={index} latitude={spot.latitude} longitude={spot.longitude}>
+//           <button
+//             onClick={() => setSelectedHotspot(spot)}
+//             style={{
+//               background: "none",
+//               border: "none",
+//               cursor: "pointer",
+//             }}
+//           >
+//             <img src="/pin.svg" alt="pin" />
+//           </button>
+//         </Marker>
+        
+//         ))}
+
+//         {selectedHotspot && (
+//           <Popup
+//             latitude={selectedHotspot.latitude}
+//             longitude={selectedHotspot.longitude}
+//             onClose={() => setSelectedHotspot(null)}
+//             closeOnClick={false}
+//           >
+//             <div className="p-2 max-w-[200px]">
+//               <h3 className="font-bold">{selectedHotspot.title}</h3>
+//               {selectedHotspot.images[0] && (
+//                 <img
+//                   src={selectedHotspot.images[0]}
+//                   alt={selectedHotspot.title}
+//                   className="mt-2 rounded"
+//                 />
+//               )}
+//               {selectedHotspot.musicRecommendations && (
+//                 <ul className="mt-2 text-sm">
+//                   {selectedHotspot.musicRecommendations.map((rec, i) => (
+//                     <li key={i}>
+//                       🎵 {rec.title} – {rec.artist}
+//                     </li>
+//                   ))}
+//                 </ul>
+//               )}
+//             </div>
+//           </Popup>
+//         )}
+//       </Map>
+//     </div>
+//   );
+// }
+
+
+"use client";
+import { useEffect, useState } from "react";
+import { getHotspots } from "@/lib/strapi";
+import Map, { Marker, Popup } from "react-map-gl/mapbox";
+
+interface MusicRecommendation {
+  title: string;
+  artist: string;
+  genre: string;
+  link: string;
+}
+
+interface Hotspot {
+  id: number;
+  title: string;
+  latitude: number;
+  longitude: number;
+  images: { url: string }[];
+  musicRecommendations?: MusicRecommendation[];
+}
+
+export default function HomePage() {
+  const [hotspots, setHotspots] = useState<Hotspot[]>([]);
+  const [selectedHotspot, setSelectedHotspot] = useState<Hotspot | null>(null);
+
+  useEffect(() => {
+    getHotspots().then((data) => {
+      // Transform images: string[] -> { url: string }[]
+      const transformed = data.map((hotspot:any) => ({
+        ...hotspot,
+        images: Array.isArray(hotspot.images)
+          ? hotspot.images.map((img: string | { url: string }) =>
+              typeof img === "string" ? { url: img } : img
+            )
+          : [],
+      }));
+      console.log(transformed, 'transformed');
+      setHotspots(transformed);
+    });
+  }, []);
+  console.log(hotspots, 'hotspot');
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="w-full h-screen">
+      <Map
+        mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}
+        initialViewState={{
+          latitude: 9.082,
+          longitude: 8.6753,
+          zoom: 5.5,
+        }}
+        style={{ width: "100%", height: "100%" }}
+        mapStyle="mapbox://styles/mapbox/streets-v11"
+      >
+        {hotspots.map((spot) => (
+          <Marker key={spot.id} latitude={spot.latitude} longitude={spot.longitude}>
+            <button
+              onClick={() => setSelectedHotspot(spot)}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              <img src="/pin.svg" alt="pin" />
+            </button>
+          </Marker>
+        ))}
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        {selectedHotspot && (
+          <Popup
+            latitude={selectedHotspot.latitude}
+            longitude={selectedHotspot.longitude}
+            onClose={() => setSelectedHotspot(null)}
+            closeOnClick={false}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+            <div className="p-2 max-w-[250px]">
+              <h3 className="font-bold text-lg">{selectedHotspot.title}</h3>
+
+              {selectedHotspot.images?.[0]?.url && (
+                <img
+                  src={selectedHotspot.images[0].url}
+                  alt={selectedHotspot.title}
+                  className="mt-2 rounded"
+                />
+              )}
+
+              {selectedHotspot.musicRecommendations && (
+                <div className="mt-3 text-sm">
+                  <h4 className="font-semibold mb-1">🎧 Music Recommendations</h4>
+                  <ul className="space-y-2">
+                    {selectedHotspot.musicRecommendations.map((rec, i) => (
+                      <li key={i} className="border-t border-gray-200 pt-1">
+                        <p><strong>🎵 Title:</strong> {rec.title}</p>
+                        <p><strong>👤 Artist:</strong> {rec.artist}</p>
+                        <p><strong>🎶 Genre:</strong> {rec.genre}</p>
+                        {rec.link && (
+                          <p>
+                            <a
+                              href={rec.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-500 underline"
+                            >
+                              🔗 Listen here
+                            </a>
+                          </p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </Popup>
+        )}
+      </Map>
     </div>
   );
 }
