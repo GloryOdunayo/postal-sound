@@ -24,7 +24,6 @@
 //       setHotspots(data);
 //     });
 //   }, []);
-  
 
 //   return (
 //     <div className="w-full h-screen">
@@ -51,7 +50,7 @@
 //             <img src="/pin.svg" alt="pin" />
 //           </button>
 //         </Marker>
-        
+
 //         ))}
 
 //         {selectedHotspot && (
@@ -87,11 +86,13 @@
 //   );
 // }
 
-
 "use client";
 import { useEffect, useState } from "react";
-import { getHotspots } from "@/lib/strapi";
 import Map, { Marker, Popup } from "react-map-gl/mapbox";
+import axios from "axios";
+import Image from "next/image";
+import { MapPin } from "lucide-react";
+const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL as string;
 
 interface MusicRecommendation {
   title: string;
@@ -113,77 +114,135 @@ export default function HomePage() {
   const [hotspots, setHotspots] = useState<Hotspot[]>([]);
   const [selectedHotspot, setSelectedHotspot] = useState<Hotspot | null>(null);
 
+  const getHotspots = async (): Promise<Hotspot[]> => {
+    try {
+      const res = await axios.get(`${API_URL}/api/hotspots?populate=*`, {
+        headers: {
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_STRAPI_API_TOKEN}`,
+        },
+      });
+
+      if (!res.data?.data) {
+        console.error("❌ No data returned from API");
+        return [];
+      }
+
+      const hotspots = res.data.data.map((item: any) => {
+        const attrs = item;
+        return {
+          id: item.id,
+          title: attrs.title,
+          latitude: parseFloat(attrs.latitude),
+          longitude: parseFloat(attrs.longitude),
+          images: attrs.images,
+          musicRecommendations:
+            attrs.musicRecommendations?.map((rec: any) => ({
+              title: rec.title,
+              artist: rec.artist,
+              genre: rec.genre,
+              link: rec.link,
+            })) || [],
+        };
+      });
+
+      return hotspots;
+    } catch (err: any) {
+      console.error("🔥 Error fetching hotspots:", err);
+      return [];
+    }
+  };
+
   useEffect(() => {
     getHotspots().then((data) => {
-      // Transform images: string[] -> { url: string }[]
-      const transformed = data.map((hotspot:any) => ({
-        ...hotspot,
-        images: Array.isArray(hotspot.images)
-          ? hotspot.images.map((img: string | { url: string }) =>
-              typeof img === "string" ? { url: img } : img
-            )
-          : [],
-      }));
-      console.log(transformed, 'transformed');
-      setHotspots(transformed);
+      const validHotspots = data.filter(
+        (spot) => !isNaN(spot.latitude) && !isNaN(spot.longitude)
+      );
+      setHotspots(validHotspots);
     });
   }, []);
-  console.log(hotspots, 'hotspot');
+
+  console.log(
+    hotspots.map((h) => ({
+      title: h.title,
+      lat: h.latitude,
+      lon: h.longitude,
+      typeLat: typeof h.latitude,
+      typeLon: typeof h.longitude,
+    })), 'hotspots', hotspots
+  );
 
   return (
     <div className="w-full h-screen">
-      <Map
-        mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}
-        initialViewState={{
-          latitude: 9.082,
-          longitude: 8.6753,
-          zoom: 5.5,
-        }}
-        style={{ width: "100%", height: "100%" }}
-        mapStyle="mapbox://styles/mapbox/streets-v11"
-      >
-        {hotspots.map((spot) => (
-          <Marker key={spot.id} latitude={spot.latitude} longitude={spot.longitude}>
-            <button
-              onClick={() => setSelectedHotspot(spot)}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-              }}
+      <div className="w-full h-screen rounded-xl overflow-hidden">
+        {/* <Map
+          initialViewState={{
+            longitude: -3.7038,
+            latitude: 40.4168,
+            zoom: 12,
+          }}
+          style={{ width: "100%", height: "100%" }}
+          mapStyle="mapbox://styles/mapbox/streets-v12"
+          mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}
+        >
+          {hotspots.map((spot, i) => (
+            <Marker
+              key={i}
+              longitude={spot.longitude}
+              latitude={spot.latitude}
+              anchor="bottom"
             >
-              <img src="/pin.svg" alt="pin" />
-            </button>
-          </Marker>
-        ))}
-
-        {selectedHotspot && (
-          <Popup
-            latitude={selectedHotspot.latitude}
-            longitude={selectedHotspot.longitude}
-            onClose={() => setSelectedHotspot(null)}
-            closeOnClick={false}
-          >
-            <div className="p-2 max-w-[250px]">
-              <h3 className="font-bold text-lg">{selectedHotspot.title}</h3>
-
-              {selectedHotspot.images?.[0]?.url && (
-                <img
-                  src={selectedHotspot.images[0].url}
-                  alt={selectedHotspot.title}
-                  className="mt-2 rounded"
+              <div
+                onClick={() => setSelectedHotspot(spot)}
+                className="cursor-pointer"
+              >
+                <MapPin
+                  size={28}
+                  className="text-orange-900 drop-shadow"
+                  strokeWidth={1}
+                  style={{ fill: "#7E2A0C" }}
                 />
-              )}
+              </div>
+            </Marker>
+          ))}
+          {selectedHotspot && (
+            <Popup
+              longitude={selectedHotspot.longitude}
+              latitude={selectedHotspot.latitude}
+              onClose={() => setSelectedHotspot(null)}
+              closeOnClick={false}
+              anchor="top"
+            >
+              <div className="w-48">
+                {selectedHotspot.images[0] && (
+                  <Image
+                    src={selectedHotspot.images[0].url || ""}
+                    alt={selectedHotspot.title}
+                    className="rounded-md mb-2 w-full h-24 object-cover"
+                    width={200}
+                    height={120}
+                  />
+                )}
+                <strong>{selectedHotspot.title}</strong>
+                <p className="text-sm">{selectedHotspot.description}</p>
+              </div>
 
               {selectedHotspot.musicRecommendations && (
                 <div className="mt-3 text-sm">
-                  <h4 className="font-semibold mb-1">🎧 Music Recommendations</h4>
+                  <h4 className="font-semibold mb-1">
+                    🎧 Music Recommendations
+                  </h4>
                   <ul className="space-y-2">
                     {selectedHotspot.musicRecommendations.map((rec, i) => (
                       <li key={i} className="border-t border-gray-200 pt-1">
-                        <p><strong>🎵 Title:</strong> {rec.title}</p>
-                        <p><strong>👤 Artist:</strong> {rec.artist}</p>
-                        <p><strong>🎶 Genre:</strong> {rec.genre}</p>
+                        <p>
+                          <strong>🎵 Title:</strong> {rec.title}
+                        </p>
+                        <p>
+                          <strong>👤 Artist:</strong> {rec.artist}
+                        </p>
+                        <p>
+                          <strong>🎶 Genre:</strong> {rec.genre}
+                        </p>
                         {rec.link && (
                           <p>
                             <a
@@ -201,10 +260,109 @@ export default function HomePage() {
                   </ul>
                 </div>
               )}
-            </div>
-          </Popup>
-        )}
-      </Map>
+            </Popup>
+          )}
+        </Map> */}
+        <Map
+          initialViewState={{
+            longitude: -3.7038,
+            latitude: 40.4168,
+            zoom: 12,
+          }}
+          style={{ width: "100%", height: "100%" }}
+          mapStyle="mapbox://styles/mapbox/streets-v12"
+          mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}
+        >
+          {hotspots.map((spot) => {
+            console.log(`🎯 Rendering marker for ${spot.title} at`, spot.latitude, spot.longitude);
+            return (
+              <Marker
+                key={spot.id}
+                longitude={spot.longitude}
+                latitude={spot.latitude}
+                anchor="bottom"
+              >
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log("📌 Marker clicked:", spot.title);
+                    setSelectedHotspot(spot);
+                  }}
+                  className="cursor-pointer hover:scale-110 transition-transform"
+                  style={{ 
+                    position: 'relative',
+                    zIndex: 1000,
+                    width: '40px',
+                    height: '40px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <MapPin
+                    size={36}
+                    className="text-orange-900 drop-shadow-lg"
+                    strokeWidth={2}
+                    style={{ fill: "#EA580C", stroke: "#7E2A0C" }}
+                  />
+                </div>
+              </Marker>
+            );
+          })}
+          
+          {selectedHotspot && (
+            <Popup
+              longitude={selectedHotspot.longitude}
+              latitude={selectedHotspot.latitude}
+              onClose={() => setSelectedHotspot(null)}
+              closeOnClick={false}
+              anchor="top"
+              offset={15}
+            >
+              <div className="w-64 max-h-96 overflow-y-auto">
+                {selectedHotspot.images[0] && (
+                  <Image
+                    src={selectedHotspot.images[0].url || ""}
+                    alt={selectedHotspot.title}
+                    className="rounded-md mb-2 w-full h-32 object-cover"
+                    width={256}
+                    height={128}
+                  />
+                )}
+                <strong className="text-base">{selectedHotspot.title}</strong>
+
+                {selectedHotspot.musicRecommendations && 
+                 selectedHotspot.musicRecommendations.length > 0 && (
+                  <div className="mt-3 text-sm">
+                    <h4 className="font-semibold mb-2 text-gray-800">
+                      🎧 Music Recommendations
+                    </h4>
+                    <ul className="space-y-2">
+                      {selectedHotspot.musicRecommendations.map((rec, i) => (
+                        <li key={i} className="border-t border-gray-200 pt-2">
+                          <p className="font-medium">🎵 {rec.title}</p>
+                          <p className="text-gray-600">👤 {rec.artist}</p>
+                          <p className="text-gray-500 text-xs">🎶 {rec.genre}</p>
+                          {rec.link && (
+                            <a
+                              href={rec.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-500 hover:text-blue-700 underline text-xs inline-block mt-1"
+                            >
+                              🔗 Listen here
+                            </a>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </Popup>
+          )}
+        </Map>
+      </div>
     </div>
   );
 }
