@@ -92,6 +92,7 @@ import Map, { Marker, Popup } from "react-map-gl/mapbox";
 import axios from "axios";
 import Image from "next/image";
 import { MapPin } from "lucide-react";
+import 'mapbox-gl/dist/mapbox-gl.css';
 const API_URL = process.env.NEXT_PUBLIC_STRAPI_API_URL as string;
 
 interface MusicRecommendation {
@@ -106,6 +107,7 @@ interface Hotspot {
   title: string;
   latitude: number;
   longitude: number;
+  description: number;
   images: { url: string }[];
   musicRecommendations?: MusicRecommendation[];
 }
@@ -113,6 +115,7 @@ interface Hotspot {
 export default function HomePage() {
   const [hotspots, setHotspots] = useState<Hotspot[]>([]);
   const [selectedHotspot, setSelectedHotspot] = useState<Hotspot | null>(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const getHotspots = async (): Promise<Hotspot[]> => {
     try {
@@ -135,6 +138,7 @@ export default function HomePage() {
           latitude: parseFloat(attrs.latitude),
           longitude: parseFloat(attrs.longitude),
           images: attrs.images,
+          description: attrs.description,
           musicRecommendations:
             attrs.musicRecommendations?.map((rec: any) => ({
               title: rec.title,
@@ -161,20 +165,23 @@ export default function HomePage() {
     });
   }, []);
 
-  console.log(
-    hotspots.map((h) => ({
-      title: h.title,
-      lat: h.latitude,
-      lon: h.longitude,
-      typeLat: typeof h.latitude,
-      typeLon: typeof h.longitude,
-    })), 'hotspots', hotspots
-  );
+  useEffect(() => {
+    if (!selectedHotspot || !selectedHotspot.images || selectedHotspot.images.length <= 1) return;
+  
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prev) =>
+        prev === selectedHotspot.images.length - 1 ? 0 : prev + 1
+      );
+    }, 4000); // change every 4 seconds
+  
+    return () => clearInterval(interval);
+  }, [selectedHotspot]);
+  
 
   return (
     <div className="w-full h-screen">
       <div className="w-full h-screen rounded-xl overflow-hidden">
-        {/* <Map
+        <Map
           initialViewState={{
             longitude: -3.7038,
             latitude: 40.4168,
@@ -192,7 +199,10 @@ export default function HomePage() {
               anchor="bottom"
             >
               <div
-                onClick={() => setSelectedHotspot(spot)}
+                onClick={() => {
+                  setSelectedHotspot(spot);
+                  setCurrentImageIndex(0);
+                }}
                 className="cursor-pointer"
               >
                 <MapPin
@@ -213,7 +223,7 @@ export default function HomePage() {
               anchor="top"
             >
               <div className="w-48">
-                {selectedHotspot.images[0] && (
+                {/* {selectedHotspot.images[0] && (
                   <Image
                     src={selectedHotspot.images[0].url || ""}
                     alt={selectedHotspot.title}
@@ -221,6 +231,17 @@ export default function HomePage() {
                     width={200}
                     height={120}
                   />
+                )} */}
+                {selectedHotspot.images && selectedHotspot.images.length > 0 && (
+                  <div className="relative w-full h-32 overflow-hidden rounded-md mb-2">
+                    <Image
+                      src={selectedHotspot.images[currentImageIndex].url}
+                      alt={selectedHotspot.title}
+                      className="object-cover w-full h-full transition-all duration-500"
+                      width={300}
+                      height={180}
+                    />
+                  </div>
                 )}
                 <strong>{selectedHotspot.title}</strong>
                 <p className="text-sm">{selectedHotspot.description}</p>
@@ -262,8 +283,8 @@ export default function HomePage() {
               )}
             </Popup>
           )}
-        </Map> */}
-        <Map
+        </Map>
+        {/* <Map
           initialViewState={{
             longitude: -3.7038,
             latitude: 40.4168,
@@ -361,7 +382,7 @@ export default function HomePage() {
               </div>
             </Popup>
           )}
-        </Map>
+        </Map> */}
       </div>
     </div>
   );
